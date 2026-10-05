@@ -169,7 +169,9 @@ jobs:
           remote_dir="$1"
           trap 'rm -rf -- "$remote_dir"' EXIT
           chmod 700 "$remote_dir"/*.sh
-          while IFS='=' read -r key encoded; do
+          while IFS= read -r line; do
+            key="${line%%=*}"
+            encoded="${line#*=}"
             [[ "$key" =~ ^[A-Z][A-Z0-9_]*$ ]] || exit 2
             printf -v "$key" '%s' "$(printf '%s' "$encoded" | base64 --decode)"
             export "$key"
