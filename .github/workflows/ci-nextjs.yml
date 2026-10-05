@@ -50,7 +50,7 @@ jobs:
         if: inputs.package_manager != 'npm'
         run: corepack enable
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ inputs.node_version }}
           cache: ${{ inputs.package_manager }}
