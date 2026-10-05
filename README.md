@@ -21,7 +21,7 @@ Reusable workflows make SaaS number 15 as predictable as SaaS number 2. Workflow
 ## Quick start
 
 1. Prepare a production `Dockerfile` and `docker-compose.yml` whose image uses `${IMAGE_TAG}`.
-2. Prepare `/opt/velryn/<app>` on the VPS with the Compose file and runtime `.env`.
+2. Prepare `/opt/<app>` on the VPS with the Compose file and runtime `.env`.
 3. Add `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, and `VPS_KNOWN_HOSTS` to the SaaS repository.
 4. Copy [the Next.js caller](examples/nextjs-caller.yml), replace `YOUR_GITHUB_USERNAME`, and commit it as `.github/workflows/deploy.yml`.
 5. Push to `main`.

@@ -3,7 +3,7 @@
 1. Create the application repository with a deterministic lockfile and appropriate CI scripts/tools.
 2. Add production Dockerfile(s). Keep builds reproducible and run as a non-root container user where practical.
 3. Add a Compose file using `${IMAGE_TAG}` for one image or `${WEB_IMAGE_TAG}`, `${API_IMAGE_TAG}`, and `${WORKER_IMAGE_TAG}` for a full stack.
-4. Create `/opt/velryn/<app>` on the chosen VPS. Add Compose and a mode-`600` runtime `.env`; do not mix applications.
+4. Create `/opt/<app>` on the chosen VPS. Add Compose and a mode-`600` runtime `.env`; do not mix applications.
 5. Add the four required VPS secrets and optional port to the repository or its staging/production environments.
 6. Copy the closest template into `.github/workflows/deploy.yml`, replace placeholders, and point at `@v1` or an immutable release.
 7. Open a pull request. Confirm lint, typecheck, tests, and build pass without exposing deployment secrets.

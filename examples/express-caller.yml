@@ -23,7 +23,7 @@ jobs:
     with:
       app_name: example-api
       image_name: example-api
-      deploy_path: /opt/velryn/example-api
+      deploy_path: /opt/example-api
       healthcheck_url: http://localhost:3000/health
       migration_command: npm run migrate
     secrets:

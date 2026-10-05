@@ -15,7 +15,7 @@ Active deployments are queued rather than canceled because interrupting a remote
 ## Server layout
 
 ```text
-/opt/velryn/
+/opt/
 ├── inventory/
 │   ├── docker-compose.yml
 │   ├── .env                 # runtime secrets, mode 600

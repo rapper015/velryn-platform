@@ -37,7 +37,7 @@ jobs:
       worker_image_name: python-saas-worker
       worker_dockerfile: ./backend/Dockerfile
       worker_context: ./backend
-      deploy_path: /opt/velryn/python-saas
+      deploy_path: /opt/python-saas
       healthcheck_url: http://localhost:8000/health
       migration_command: docker compose --env-file .env --env-file deployment/current.env run --rm api python manage.py migrate
     secrets:

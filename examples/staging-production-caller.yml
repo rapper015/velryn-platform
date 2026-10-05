@@ -16,7 +16,7 @@ jobs:
       app_name: example-saas
       image_name: example-saas
       environment: staging
-      deploy_path: /opt/velryn/example-saas-staging
+      deploy_path: /opt/example-saas-staging
       healthcheck_url: http://localhost:3100/health
     secrets:
       VPS_HOST: ${{ secrets.VPS_HOST }}
@@ -31,7 +31,7 @@ jobs:
       app_name: example-saas
       image_name: example-saas
       environment: production
-      deploy_path: /opt/velryn/example-saas
+      deploy_path: /opt/example-saas
       healthcheck_url: http://localhost:3000/health
     secrets:
       VPS_HOST: ${{ secrets.VPS_HOST }}

@@ -7,7 +7,7 @@ The first deployment has no prior state and therefore cannot roll back automatic
 Manual rollback on the VPS:
 
 ```bash
-cd /opt/velryn/example-saas
+cd /opt/example-saas
 deployment/scripts/rollback.sh "$PWD" docker-compose.yml http://localhost:3000/health 20 5
 ```
 
