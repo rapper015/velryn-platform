@@ -60,7 +60,7 @@ jobs:
             ${{ inputs.working_directory }}/yarn.lock
 
       - name: Restore Next.js compiler cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ inputs.working_directory }}/.next/cache
           key: next-${{ runner.os }}-${{ inputs.node_version }}-${{ hashFiles(format('{0}/package-lock.json', inputs.working_directory), format('{0}/pnpm-lock.yaml', inputs.working_directory), format('{0}/yarn.lock', inputs.working_directory)) }}-${{ hashFiles(format('{0}/**/*.[jt]s', inputs.working_directory), format('{0}/**/*.[jt]sx', inputs.working_directory)) }}
