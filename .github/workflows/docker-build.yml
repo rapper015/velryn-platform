@@ -96,7 +96,7 @@ jobs:
 
       - name: Build once and optionally publish
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ inputs.docker_context }}
           file: ${{ inputs.dockerfile }}
