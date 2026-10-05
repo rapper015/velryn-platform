@@ -120,7 +120,11 @@ jobs:
           [[ "$HEALTHCHECK_TIMEOUT" =~ ^[1-9][0-9]*$ ]] || { echo "Invalid healthcheck_timeout" >&2; exit 2; }
           remote_dir="/tmp/velryn-deploy-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           config="$RUNNER_TEMP/velryn-deploy.conf"
-          encode() { printf '%s' "$2" | base64 -w 0 | sed "s/^/$1=/" >> "$config"; printf '\n' >> "$config"; }
+          encode() {
+            printf '%s=' "$1" >> "$config"
+            printf '%s' "$2" | base64 -w 0 >> "$config"
+            printf '\n' >> "$config"
+          }
           : > "$config"
           encode APP_NAME "$APP_NAME"
           encode DEPLOY_PATH "$DEPLOY_PATH"
