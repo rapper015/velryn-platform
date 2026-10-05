@@ -39,7 +39,7 @@ jobs:
         working-directory: ${{ inputs.working_directory }}
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate package manager
         shell: bash

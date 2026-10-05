@@ -54,7 +54,7 @@ jobs:
       image_digest: ${{ steps.build.outputs.digest }}
       commit_sha: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Derive validated image metadata
         id: meta
