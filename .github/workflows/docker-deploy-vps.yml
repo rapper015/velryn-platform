@@ -1,0 +1,79 @@
+name: Reusable Docker Build and VPS Deployment
+
+on:
+  workflow_call:
+    inputs:
+      app_name: { required: true, type: string }
+      image_name: { required: true, type: string }
+      dockerfile: { type: string, default: ./Dockerfile }
+      docker_context: { type: string, default: . }
+      platforms: { type: string, default: linux/amd64 }
+      image_tag: { type: string, default: '' }
+      tag_latest: { type: boolean, default: false }
+      deploy_path: { required: true, type: string }
+      compose_file: { type: string, default: docker-compose.yml }
+      environment: { type: string, default: production }
+      image_env_vars: { type: string, default: IMAGE_TAG }
+      healthcheck_url: { type: string, default: '' }
+      healthcheck_timeout: { type: number, default: 100 }
+      migration_command: { type: string, default: '' }
+      pre_deploy_command: { type: string, default: '' }
+      post_deploy_command: { type: string, default: '' }
+    secrets:
+      VPS_HOST: { required: true }
+      VPS_USER: { required: true }
+      VPS_SSH_KEY: { required: true }
+      VPS_KNOWN_HOSTS: { required: true }
+      VPS_PORT: { required: false }
+    outputs:
+      image:
+        value: ${{ jobs.build.outputs.image }}
+      image_tag:
+        value: ${{ jobs.build.outputs.image_tag }}
+      image_digest:
+        value: ${{ jobs.build.outputs.image_digest }}
+      commit_sha:
+        value: ${{ jobs.build.outputs.commit_sha }}
+      deployment_status:
+        value: ${{ jobs.deploy.outputs.deployment_status }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    uses: ./.github/workflows/docker-build.yml
+    with:
+      image_name: ${{ inputs.image_name }}
+      dockerfile: ${{ inputs.dockerfile }}
+      docker_context: ${{ inputs.docker_context }}
+      platforms: ${{ inputs.platforms }}
+      push_image: true
+      image_tag: ${{ inputs.image_tag }}
+      tag_latest: ${{ inputs.tag_latest }}
+    secrets:
+      GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy:
+    needs: build
+    uses: ./.github/workflows/deploy-vps.yml
+    with:
+      app_name: ${{ inputs.app_name }}
+      deploy_path: ${{ inputs.deploy_path }}
+      compose_file: ${{ inputs.compose_file }}
+      environment: ${{ inputs.environment }}
+      image_tag: ${{ needs.build.outputs.image_tag }}
+      image_env_vars: ${{ inputs.image_env_vars }}
+      healthcheck_url: ${{ inputs.healthcheck_url }}
+      healthcheck_timeout: ${{ inputs.healthcheck_timeout }}
+      migration_command: ${{ inputs.migration_command }}
+      pre_deploy_command: ${{ inputs.pre_deploy_command }}
+      post_deploy_command: ${{ inputs.post_deploy_command }}
+      commit_sha: ${{ needs.build.outputs.commit_sha }}
+    secrets:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+      VPS_PORT: ${{ secrets.VPS_PORT }}

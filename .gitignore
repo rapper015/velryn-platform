@@ -1,0 +1,13 @@
+# This platform never stores runtime secrets.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local tooling
+.DS_Store
+.idea/
+.vscode/
+__pycache__/
+.pytest_cache/

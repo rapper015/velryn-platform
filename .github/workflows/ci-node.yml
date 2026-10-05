@@ -1,0 +1,89 @@
+name: Reusable Node CI
+
+on:
+  workflow_call:
+    inputs:
+      node_version:
+        description: Node.js version understood by setup-node.
+        type: string
+        default: '22'
+      package_manager:
+        description: npm, pnpm, or yarn.
+        type: string
+        default: npm
+      working_directory:
+        description: Project directory relative to the repository root.
+        type: string
+        default: .
+      run_lint:
+        type: boolean
+        default: true
+      run_typecheck:
+        type: boolean
+        default: true
+      run_tests:
+        type: boolean
+        default: true
+      run_build:
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Validate package manager
+        shell: bash
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package_manager }}
+        run: |
+          case "$PACKAGE_MANAGER" in npm|pnpm|yarn) ;; *) echo "Unsupported package manager: $PACKAGE_MANAGER" >&2; exit 2;; esac
+
+      - name: Enable Corepack
+        if: inputs.package_manager != 'npm'
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: ${{ inputs.package_manager }}
+          cache-dependency-path: |
+            ${{ inputs.working_directory }}/package-lock.json
+            ${{ inputs.working_directory }}/pnpm-lock.yaml
+            ${{ inputs.working_directory }}/yarn.lock
+
+      - name: Install dependencies deterministically
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package_manager }}
+        run: |
+          case "$PACKAGE_MANAGER" in
+            npm) npm ci ;;
+            pnpm) pnpm install --frozen-lockfile ;;
+            yarn) yarn install --immutable ;;
+          esac
+
+      - name: Lint
+        if: inputs.run_lint
+        run: ${{ inputs.package_manager }} run lint
+
+      - name: Typecheck
+        if: inputs.run_typecheck
+        run: ${{ inputs.package_manager }} run typecheck
+
+      - name: Test
+        if: inputs.run_tests
+        run: ${{ inputs.package_manager }} run test
+
+      - name: Build
+        if: inputs.run_build
+        run: ${{ inputs.package_manager }} run build

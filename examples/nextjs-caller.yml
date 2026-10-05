@@ -1,0 +1,36 @@
+name: Velryn CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  ci:
+    uses: YOUR_GITHUB_USERNAME/velryn-platform/.github/workflows/ci-nextjs.yml@v1
+    with:
+      run_tests: true
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: ci
+    uses: YOUR_GITHUB_USERNAME/velryn-platform/.github/workflows/docker-deploy-vps.yml@v1
+    with:
+      app_name: example-saas
+      image_name: example-saas
+      dockerfile: ./Dockerfile
+      docker_context: .
+      deploy_path: /opt/velryn/example-saas
+      compose_file: docker-compose.yml
+      environment: production
+      healthcheck_url: http://localhost:3000/api/health
+    secrets:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+      VPS_PORT: ${{ secrets.VPS_PORT }}

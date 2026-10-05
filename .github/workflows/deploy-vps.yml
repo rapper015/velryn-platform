@@ -1,0 +1,194 @@
+name: Reusable VPS Deployment
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        required: true
+        type: string
+      deploy_path:
+        required: true
+        type: string
+      compose_file:
+        type: string
+        default: docker-compose.yml
+      environment:
+        type: string
+        default: production
+      image_tag:
+        description: Immutable tag used by all variables in image_env_vars.
+        required: true
+        type: string
+      image_env_vars:
+        description: Comma-separated Compose tag variables.
+        type: string
+        default: IMAGE_TAG
+      healthcheck_url:
+        type: string
+        default: ''
+      healthcheck_timeout:
+        description: Maximum health-check duration in seconds.
+        type: number
+        default: 100
+      migration_command:
+        type: string
+        default: ''
+      pre_deploy_command:
+        type: string
+        default: ''
+      post_deploy_command:
+        type: string
+        default: ''
+      commit_sha:
+        type: string
+        default: ''
+    secrets:
+      VPS_HOST:
+        required: true
+      VPS_USER:
+        required: true
+      VPS_SSH_KEY:
+        required: true
+      VPS_KNOWN_HOSTS:
+        required: true
+      VPS_PORT:
+        required: false
+    outputs:
+      deployment_status:
+        value: ${{ jobs.deploy.outputs.deployment_status }}
+      deployed_tag:
+        value: ${{ jobs.deploy.outputs.deployed_tag }}
+
+permissions:
+  contents: read
+
+# Running deployments are not canceled: interruption during Compose mutation is less safe than queueing.
+concurrency:
+  group: deploy-${{ inputs.app_name }}-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    outputs:
+      deployment_status: ${{ steps.result.outputs.status }}
+      deployed_tag: ${{ inputs.image_tag }}
+    steps:
+      - name: Locate the versioned platform source
+        id: platform
+        shell: bash
+        env:
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+        run: |
+          repository="${WORKFLOW_REF%%/.github/workflows/*}"
+          ref="${WORKFLOW_REF##*@}"
+          [[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || exit 2
+          echo "repository=$repository" >> "$GITHUB_OUTPUT"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+      - name: Check out deployment scripts from this platform version
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.platform.outputs.repository }}
+          ref: ${{ steps.platform.outputs.ref }}
+          path: velryn-platform
+
+      - name: Configure verified SSH
+        shell: bash
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$SSH_KEY" > "$HOME/.ssh/velryn_deploy"
+          printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/velryn_deploy" "$HOME/.ssh/known_hosts"
+
+      - name: Validate connection fields and create transfer configuration
+        id: config
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          APP_NAME: ${{ inputs.app_name }}
+          DEPLOY_PATH: ${{ inputs.deploy_path }}
+          COMPOSE_FILE: ${{ inputs.compose_file }}
+          DEPLOY_ENV: ${{ inputs.environment }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          IMAGE_ENV_VARS: ${{ inputs.image_env_vars }}
+          HEALTHCHECK_URL: ${{ inputs.healthcheck_url }}
+          HEALTHCHECK_TIMEOUT: ${{ inputs.healthcheck_timeout }}
+          MIGRATION_COMMAND: ${{ inputs.migration_command }}
+          PRE_DEPLOY_COMMAND: ${{ inputs.pre_deploy_command }}
+          POST_DEPLOY_COMMAND: ${{ inputs.post_deploy_command }}
+          COMMIT_SHA_INPUT: ${{ inputs.commit_sha }}
+        run: |
+          [[ "$VPS_HOST" =~ ^[A-Za-z0-9._:-]+$ ]] || { echo "Invalid VPS_HOST" >&2; exit 2; }
+          [[ "$VPS_USER" =~ ^[a-z_][a-z0-9_-]*$ ]] || { echo "Invalid VPS_USER" >&2; exit 2; }
+          port="${VPS_PORT:-22}"
+          [[ "$port" =~ ^[0-9]{1,5}$ ]] && (( port >= 1 && port <= 65535 )) || { echo "Invalid VPS_PORT" >&2; exit 2; }
+          [[ "$HEALTHCHECK_TIMEOUT" =~ ^[1-9][0-9]*$ ]] || { echo "Invalid healthcheck_timeout" >&2; exit 2; }
+          remote_dir="/tmp/velryn-deploy-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          config="$RUNNER_TEMP/velryn-deploy.conf"
+          encode() { printf '%s' "$2" | base64 -w 0 | sed "s/^/$1=/" >> "$config"; printf '\n' >> "$config"; }
+          : > "$config"
+          encode APP_NAME "$APP_NAME"
+          encode DEPLOY_PATH "$DEPLOY_PATH"
+          encode COMPOSE_FILE "$COMPOSE_FILE"
+          encode IMAGE_TAG "$IMAGE_TAG"
+          encode IMAGE_ENV_VARS "$IMAGE_ENV_VARS"
+          encode HEALTHCHECK_URL "$HEALTHCHECK_URL"
+          attempts=$(( (HEALTHCHECK_TIMEOUT + 4) / 5 ))
+          encode HEALTHCHECK_ATTEMPTS "$attempts"
+          encode HEALTHCHECK_INTERVAL '5'
+          encode PRE_DEPLOY_COMMAND "$PRE_DEPLOY_COMMAND"
+          encode MIGRATION_COMMAND "$MIGRATION_COMMAND"
+          encode POST_DEPLOY_COMMAND "$POST_DEPLOY_COMMAND"
+          encode DEPLOYMENT_ENVIRONMENT "$DEPLOY_ENV"
+          encode COMMIT_SHA "${COMMIT_SHA_INPUT:-$GITHUB_SHA}"
+          chmod 600 "$config"
+          echo "port=$port" >> "$GITHUB_OUTPUT"
+          echo "remote_dir=$remote_dir" >> "$GITHUB_OUTPUT"
+          echo "config=$config" >> "$GITHUB_OUTPUT"
+
+      - name: Transfer versioned deployment scripts
+        shell: bash
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+          PORT: ${{ steps.config.outputs.port }}
+          REMOTE_DIR: ${{ steps.config.outputs.remote_dir }}
+          CONFIG_FILE: ${{ steps.config.outputs.config }}
+        run: |
+          ssh -i "$HOME/.ssh/velryn_deploy" -p "$PORT" "$USER@$HOST" "install -d -m 700 '$REMOTE_DIR'"
+          scp -i "$HOME/.ssh/velryn_deploy" -P "$PORT" \
+            velryn-platform/scripts/deploy.sh velryn-platform/scripts/rollback.sh \
+            velryn-platform/scripts/health-check.sh velryn-platform/scripts/docker-cleanup.sh \
+            velryn-platform/scripts/validate-config.sh "$CONFIG_FILE" "$USER@$HOST:$REMOTE_DIR/"
+
+      - name: Deploy prebuilt image and verify health
+        shell: bash
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+          PORT: ${{ steps.config.outputs.port }}
+          REMOTE_DIR: ${{ steps.config.outputs.remote_dir }}
+        run: |
+          ssh -i "$HOME/.ssh/velryn_deploy" -p "$PORT" "$USER@$HOST" 'bash -s' -- "$REMOTE_DIR" <<'REMOTE'
+          set -Eeuo pipefail
+          remote_dir="$1"
+          trap 'rm -rf -- "$remote_dir"' EXIT
+          chmod 700 "$remote_dir"/*.sh
+          while IFS='=' read -r key encoded; do
+            [[ "$key" =~ ^[A-Z][A-Z0-9_]*$ ]] || exit 2
+            printf -v "$key" '%s' "$(printf '%s' "$encoded" | base64 --decode)"
+            export "$key"
+          done < "$remote_dir/velryn-deploy.conf"
+          "$remote_dir/deploy.sh"
+          REMOTE
+
+      - name: Record deployment result
+        id: result
+        run: echo 'status=success' >> "$GITHUB_OUTPUT"

@@ -1,0 +1,63 @@
+name: Reusable Python CI
+
+on:
+  workflow_call:
+    inputs:
+      python_version:
+        type: string
+        default: '3.12'
+      working_directory:
+        type: string
+        default: .
+      dependency_file:
+        description: requirements file or pyproject.toml, relative to working_directory.
+        type: string
+        default: requirements.txt
+      run_lint:
+        type: boolean
+        default: true
+      run_tests:
+        type: boolean
+        default: true
+      run_typecheck:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+          cache: pip
+          cache-dependency-path: ${{ inputs.working_directory }}/${{ inputs.dependency_file }}
+
+      - name: Install project dependencies
+        env:
+          DEPENDENCY_FILE: ${{ inputs.dependency_file }}
+        run: |
+          python -m pip install --upgrade pip
+          case "$DEPENDENCY_FILE" in
+            *.txt) python -m pip install -r "$DEPENDENCY_FILE" ;;
+            pyproject.toml) python -m pip install . ;;
+            *) echo "dependency_file must be requirements-style .txt or pyproject.toml" >&2; exit 2 ;;
+          esac
+
+      # These stages are opt-in/out; projects declare Ruff, pytest, and mypy in their own dependencies.
+      - name: Lint with Ruff
+        if: inputs.run_lint
+        run: python -m ruff check .
+      - name: Test with pytest
+        if: inputs.run_tests
+        run: python -m pytest
+      - name: Typecheck with mypy
+        if: inputs.run_typecheck
+        run: python -m mypy .

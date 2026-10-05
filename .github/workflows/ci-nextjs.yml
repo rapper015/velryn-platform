@@ -1,0 +1,103 @@
+name: Reusable Next.js CI
+
+on:
+  workflow_call:
+    inputs:
+      node_version:
+        type: string
+        default: '22'
+      package_manager:
+        type: string
+        default: npm
+      working_directory:
+        type: string
+        default: .
+      run_tests:
+        type: boolean
+        default: true
+      run_lint:
+        type: boolean
+        default: true
+      run_typecheck:
+        type: boolean
+        default: true
+      run_build:
+        type: boolean
+        default: true
+    secrets:
+      BUILD_ENV:
+        description: Optional newline-separated KEY=value build variables; never printed.
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate package manager
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package_manager }}
+        run: 'case "$PACKAGE_MANAGER" in npm|pnpm|yarn) ;; *) exit 2;; esac'
+
+      - name: Enable Corepack
+        if: inputs.package_manager != 'npm'
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: ${{ inputs.package_manager }}
+          cache-dependency-path: |
+            ${{ inputs.working_directory }}/package-lock.json
+            ${{ inputs.working_directory }}/pnpm-lock.yaml
+            ${{ inputs.working_directory }}/yarn.lock
+
+      - name: Restore Next.js compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ inputs.working_directory }}/.next/cache
+          key: next-${{ runner.os }}-${{ inputs.node_version }}-${{ hashFiles(format('{0}/package-lock.json', inputs.working_directory), format('{0}/pnpm-lock.yaml', inputs.working_directory), format('{0}/yarn.lock', inputs.working_directory)) }}-${{ hashFiles(format('{0}/**/*.[jt]s', inputs.working_directory), format('{0}/**/*.[jt]sx', inputs.working_directory)) }}
+          restore-keys: next-${{ runner.os }}-${{ inputs.node_version }}-
+
+      - name: Install dependencies deterministically
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package_manager }}
+        run: |
+          case "$PACKAGE_MANAGER" in
+            npm) npm ci ;;
+            pnpm) pnpm install --frozen-lockfile ;;
+            yarn) yarn install --immutable ;;
+          esac
+
+      - name: Load optional build environment
+        shell: bash
+        env:
+          BUILD_ENV: ${{ secrets.BUILD_ENV }}
+        run: |
+          while IFS= read -r line || [[ -n "$line" ]]; do
+            [[ -z "$line" ]] && continue
+            [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || { echo "BUILD_ENV contains an invalid key" >&2; exit 2; }
+            value="${line#*=}"
+            [[ -n "$value" ]] && echo "::add-mask::$value"
+            printf '%s\n' "$line" >> "$GITHUB_ENV"
+          done <<< "$BUILD_ENV"
+
+      - if: inputs.run_lint
+        name: Lint
+        run: ${{ inputs.package_manager }} run lint
+      - if: inputs.run_typecheck
+        name: Typecheck
+        run: ${{ inputs.package_manager }} run typecheck
+      - if: inputs.run_tests
+        name: Test
+        run: ${{ inputs.package_manager }} run test
+      - if: inputs.run_build
+        name: Production build
+        run: ${{ inputs.package_manager }} run build

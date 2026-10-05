@@ -1,0 +1,40 @@
+name: Staging and Production
+
+on:
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  staging:
+    if: github.ref == 'refs/heads/develop'
+    uses: YOUR_GITHUB_USERNAME/velryn-platform/.github/workflows/docker-deploy-vps.yml@v1
+    with:
+      app_name: example-saas
+      image_name: example-saas
+      environment: staging
+      deploy_path: /opt/velryn/example-saas-staging
+      healthcheck_url: http://localhost:3100/health
+    secrets:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+
+  production:
+    if: github.ref == 'refs/heads/main'
+    uses: YOUR_GITHUB_USERNAME/velryn-platform/.github/workflows/docker-deploy-vps.yml@v1
+    with:
+      app_name: example-saas
+      image_name: example-saas
+      environment: production
+      deploy_path: /opt/velryn/example-saas
+      healthcheck_url: http://localhost:3000/health
+    secrets:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}

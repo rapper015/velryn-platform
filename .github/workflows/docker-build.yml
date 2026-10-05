@@ -1,0 +1,107 @@
+name: Reusable Docker Build
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        description: GHCR image name without registry or owner.
+        required: true
+        type: string
+      dockerfile:
+        type: string
+        default: ./Dockerfile
+      docker_context:
+        type: string
+        default: .
+      platforms:
+        type: string
+        default: linux/amd64
+      push_image:
+        type: boolean
+        default: true
+      image_tag:
+        description: Primary tag; blank produces sha-<short-sha>.
+        type: string
+        default: ''
+      tag_latest:
+        description: Also publish latest (normally only for a default-branch release).
+        type: boolean
+        default: false
+    secrets:
+      GHCR_TOKEN:
+        description: Pass the caller repository GITHUB_TOKEN.
+        required: false
+    outputs:
+      image:
+        value: ${{ jobs.build.outputs.image }}
+      image_tag:
+        value: ${{ jobs.build.outputs.image_tag }}
+      image_digest:
+        value: ${{ jobs.build.outputs.image_digest }}
+      commit_sha:
+        value: ${{ jobs.build.outputs.commit_sha }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+      image_digest: ${{ steps.build.outputs.digest }}
+      commit_sha: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive validated image metadata
+        id: meta
+        shell: bash
+        env:
+          OWNER: ${{ github.repository_owner }}
+          IMAGE_NAME: ${{ inputs.image_name }}
+          REQUESTED_TAG: ${{ inputs.image_tag }}
+          TAG_LATEST: ${{ inputs.tag_latest }}
+        run: |
+          owner="${OWNER,,}"
+          image_name="${IMAGE_NAME,,}"
+          [[ "$image_name" =~ ^[a-z0-9][a-z0-9._/-]*$ ]] || { echo "Invalid image_name" >&2; exit 2; }
+          short_sha="${GITHUB_SHA::7}"
+          tag="${REQUESTED_TAG:-sha-$short_sha}"
+          [[ "$tag" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]] || { echo "Invalid image_tag" >&2; exit 2; }
+          image="ghcr.io/$owner/$image_name"
+          {
+            echo "image=$image"
+            echo "image_tag=$tag"
+            echo 'tags<<EOF'
+            echo "$image:$tag"
+            [[ "$TAG_LATEST" == 'true' ]] && echo "$image:latest"
+            if [[ "$GITHUB_REF_TYPE" == 'tag' && "$GITHUB_REF_NAME" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+              echo "$image:$GITHUB_REF_NAME"
+            fi
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: inputs.push_image
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Build once and optionally publish
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.docker_context }}
+          file: ${{ inputs.dockerfile }}
+          platforms: ${{ inputs.platforms }}
+          push: ${{ inputs.push_image }}
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

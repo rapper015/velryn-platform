@@ -1,0 +1,48 @@
+name: Python Full-Stack CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  web-ci:
+    uses: YOUR_GITHUB_USERNAME/velryn-platform/.github/workflows/ci-nextjs.yml@v1
+    with:
+      working_directory: frontend
+
+  api-ci:
+    uses: YOUR_GITHUB_USERNAME/velryn-platform/.github/workflows/ci-python.yml@v1
+    with:
+      working_directory: backend
+      dependency_file: requirements.txt
+      run_typecheck: false
+
+  deploy:
+    if: github.event_name == 'push'
+    needs: [web-ci, api-ci]
+    uses: YOUR_GITHUB_USERNAME/velryn-platform/.github/workflows/full-stack-deploy.yml@v1
+    with:
+      app_name: python-saas
+      web_image_name: python-saas-web
+      web_dockerfile: ./frontend/Dockerfile
+      web_context: ./frontend
+      api_image_name: python-saas-api
+      api_dockerfile: ./backend/Dockerfile
+      api_context: ./backend
+      worker_image_name: python-saas-worker
+      worker_dockerfile: ./backend/Dockerfile
+      worker_context: ./backend
+      deploy_path: /opt/velryn/python-saas
+      healthcheck_url: http://localhost:8000/health
+      migration_command: docker compose --env-file .env --env-file deployment/current.env run --rm api python manage.py migrate
+    secrets:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+      VPS_PORT: ${{ secrets.VPS_PORT }}

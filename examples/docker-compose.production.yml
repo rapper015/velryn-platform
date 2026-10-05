@@ -1,0 +1,37 @@
+name: velryn-example
+
+services:
+  web:
+    image: ghcr.io/example/velryn-example-web:${WEB_IMAGE_TAG}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  api:
+    image: ghcr.io/example/velryn-example-api:${API_IMAGE_TAG}
+    restart: unless-stopped
+    env_file: .env
+    healthcheck:
+      test: [CMD, curl, --fail, http://localhost:8000/health]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    expose: ["8000"]
+
+  worker:
+    image: ghcr.io/example/velryn-example-worker:${WORKER_IMAGE_TAG}
+    restart: unless-stopped
+    env_file: .env
+    command: celery -A config worker --loglevel=info
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:
