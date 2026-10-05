@@ -76,7 +76,7 @@ jobs:
       deployed_tag: ${{ inputs.image_tag }}
     steps:
       - name: Check out deployment scripts from this platform version
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: rapper015/velryn-platform
           ref: v1
