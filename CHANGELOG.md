@@ -4,6 +4,10 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
+### Changed
+
+- Allow isolated deployment directories directly below `/opt`, such as `/opt/inventory`, instead of requiring the additional `/opt/velryn` parent directory.
+
 ## [1.0.0] - 2026-10-05
 
 ### Added

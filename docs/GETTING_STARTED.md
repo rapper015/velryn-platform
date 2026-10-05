@@ -7,7 +7,7 @@ For cross-repository calls under a personal GitHub account, `velryn-platform` mu
 Install Docker Engine with the Compose plugin. Create an unprivileged deployment user that can run Docker, then create one directory per SaaS:
 
 ```bash
-sudo install -d -o deploy -g deploy -m 750 /opt/velryn/example-saas
+sudo install -d -o deploy -g deploy -m 750 /opt/example-saas
 ```
 
 Place `docker-compose.yml` and a permission-restricted runtime `.env` there. Runtime database passwords, JWT keys, and provider credentials should normally live in this server-side `.env`; do not commit it.

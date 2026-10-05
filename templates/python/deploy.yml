@@ -8,7 +8,7 @@ jobs:
     with:
       app_name: CHANGE_ME
       image_name: CHANGE_ME-api
-      deploy_path: /opt/velryn/CHANGE_ME
+      deploy_path: /opt/CHANGE_ME
       healthcheck_url: http://localhost:8000/health
       migration_command: docker compose --env-file .env --env-file deployment/current.env run --rm api python manage.py migrate
     secrets:

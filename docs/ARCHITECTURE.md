@@ -8,7 +8,7 @@ merge -> Buildx -> GHCR sha tag -> SSH -> Compose pull/up -> health
                                                         \-> rollback on failure
 ```
 
-The artifact promoted is the registry image, not source code. The production host never runs `docker build`. Each product owns an isolated `/opt/velryn/<app>` directory and may point to any VPS.
+The artifact promoted is the registry image, not source code. The production host never runs `docker build`. Each product owns an isolated `/opt/<app>` directory and may point to any VPS.
 
 The server-side contract consists of the product-maintained Compose/runtime `.env` and platform-maintained `deployment/current.env`, `previous.env`, and `metadata.json`. A future `velryn` CLI can generate callers and Compose files, invoke workflow dispatches, and read this stable metadata contract without changing the deployment model.
 

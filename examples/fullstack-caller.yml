@@ -32,7 +32,7 @@ jobs:
       api_image_name: mern-saas-api
       api_dockerfile: ./backend/Dockerfile
       api_context: ./backend
-      deploy_path: /opt/velryn/mern-saas
+      deploy_path: /opt/mern-saas
       healthcheck_url: http://localhost:3001/health
     secrets:
       VPS_HOST: ${{ secrets.VPS_HOST }}

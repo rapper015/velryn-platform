@@ -24,7 +24,7 @@ jobs:
       image_name: example-saas
       dockerfile: ./Dockerfile
       docker_context: .
-      deploy_path: /opt/velryn/example-saas
+      deploy_path: /opt/example-saas
       compose_file: docker-compose.yml
       environment: production
       healthcheck_url: http://localhost:3000/api/health

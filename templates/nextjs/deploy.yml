@@ -8,7 +8,7 @@ jobs:
     with:
       app_name: CHANGE_ME
       image_name: CHANGE_ME
-      deploy_path: /opt/velryn/CHANGE_ME
+      deploy_path: /opt/CHANGE_ME
       healthcheck_url: http://localhost:3000/api/health
     secrets:
       VPS_HOST: ${{ secrets.VPS_HOST }}
