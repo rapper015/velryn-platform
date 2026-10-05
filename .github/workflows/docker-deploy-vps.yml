@@ -43,7 +43,7 @@ permissions:
 
 jobs:
   build:
-    uses: ./.github/workflows/docker-build.yml
+    uses: rapper015/velryn-platform/.github/workflows/docker-build.yml@v1
     with:
       image_name: ${{ inputs.image_name }}
       dockerfile: ${{ inputs.dockerfile }}
@@ -57,7 +57,7 @@ jobs:
 
   deploy:
     needs: build
-    uses: ./.github/workflows/deploy-vps.yml
+    uses: rapper015/velryn-platform/.github/workflows/deploy-vps.yml@v1
     with:
       app_name: ${{ inputs.app_name }}
       deploy_path: ${{ inputs.deploy_path }}

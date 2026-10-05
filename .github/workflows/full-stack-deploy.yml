@@ -45,7 +45,7 @@ permissions:
 
 jobs:
   web:
-    uses: ./.github/workflows/docker-build.yml
+    uses: rapper015/velryn-platform/.github/workflows/docker-build.yml@v1
     with:
       image_name: ${{ inputs.web_image_name }}
       dockerfile: ${{ inputs.web_dockerfile }}
@@ -56,7 +56,7 @@ jobs:
       GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   api:
-    uses: ./.github/workflows/docker-build.yml
+    uses: rapper015/velryn-platform/.github/workflows/docker-build.yml@v1
     with:
       image_name: ${{ inputs.api_image_name }}
       dockerfile: ${{ inputs.api_dockerfile }}
@@ -68,7 +68,7 @@ jobs:
 
   worker:
     if: inputs.worker_image_name != ''
-    uses: ./.github/workflows/docker-build.yml
+    uses: rapper015/velryn-platform/.github/workflows/docker-build.yml@v1
     with:
       image_name: ${{ inputs.worker_image_name }}
       dockerfile: ${{ inputs.worker_dockerfile }}
@@ -81,7 +81,7 @@ jobs:
   deploy:
     needs: [web, api, worker]
     if: ${{ always() && needs.web.result == 'success' && needs.api.result == 'success' && (needs.worker.result == 'success' || needs.worker.result == 'skipped') }}
-    uses: ./.github/workflows/deploy-vps.yml
+    uses: rapper015/velryn-platform/.github/workflows/deploy-vps.yml@v1
     with:
       app_name: ${{ inputs.app_name }}
       deploy_path: ${{ inputs.deploy_path }}
